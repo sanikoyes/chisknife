@@ -1,7 +1,11 @@
+// Package preset 提供预定义的卡带类型和 ROM 大小配置
+// 包含常见的闪存芯片规格和参数
 package preset
 
 import "chisknife/internal/types"
 
+// 定义了支持的卡带类型列表
+// 每种类型包含不同的闪存芯片规格，如容量、扇区大小和块大小
 var CartridgeTypes = types.CartridgeTypes{
 	{
 		Name:       "MSP55LV100S or S29GL512",

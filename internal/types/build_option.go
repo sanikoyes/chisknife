@@ -1,19 +1,18 @@
+// Package types 定义了应用程序使用的核心数据类型
+// 包括构建选项、ROM 列表等配置结构
 package types
 
+// 定义了卡带构建的配置选项
 type Options struct {
-	CartridgeType     int32 `json:"cartridge_type"`
-	MinimalRomSize    int32 `json:"minimal_rom_size"`
-	HaveBattery       bool  `json:"have_battery"`
-	UseRTS            bool  `json:"use_rts"`
-	SplitROM          bool  `json:"split_rom"`
-	Sram1MSaveSupport bool  `json:"sram1m_save_support"`
+	CartridgeType     int32 `json:"cartridge_type"`      // 卡带类型索引
+	MinimalRomSize    int32 `json:"minimal_rom_size"`    // 最小 ROM 大小索引
+	HaveBattery       bool  `json:"have_battery"`        // 是否包含电池
+	UseRTS            bool  `json:"use_rts"`             // 是否使用 RTS
+	SplitROM          bool  `json:"split_rom"`           // 是否分割 ROM
+	Sram1MSaveSupport bool  `json:"sram1m_save_support"` // 是否支持 1M SRAM 存档
 }
 
+// 存储 ROM 文件列表
 type RomList struct {
-	Roms []string `json:"roms"`
-}
-
-type BuildOptions struct {
-	Options Options `json:"options"`
-	RomList RomList `json:"rom_list"`
+	Roms []string `json:"roms"` // ROM 文件路径列表
 }
