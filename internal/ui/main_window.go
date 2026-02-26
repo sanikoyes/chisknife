@@ -10,6 +10,8 @@ import (
 
 // 应用程序的主窗口结构
 type mainWindow struct {
+	opts         *types.Options // 构建选项配置
+	list         *types.RomList // ROM 文件列表
 	sashPos      float32        // 分割面板的位置
 	cartSettings *cartSettings  // 卡带设置组件
 	romList      *romList       // rom列表组件
@@ -18,23 +20,25 @@ type mainWindow struct {
 // 创建并初始化主窗口实例
 func newMainWindow() *mainWindow {
 	// 设置默认的构建选项
-		Options: types.Options{
-			CartridgeType:     0,
-			MinimalRomSize:    0,
-			HaveBattery:       true,
-			UseRTS:            false,
-			SplitROM:          false,
-			Sram1MSaveSupport: false,
-		},
-		RomList: types.RomList{
-			Roms: []string{"1", "2", "3"},
-		},
+	opts := &types.Options{
+		CartridgeType:     0,
+		MinimalRomSize:    0,
+		HaveBattery:       true,
+		UseRTS:            false,
+		SplitROM:          false,
+		Sram1MSaveSupport: false,
+	}
+
+	list := &types.RomList{
+		Roms: []string{},
 	}
 
 	return &mainWindow{
 		sashPos:      320,
 		opts:         opts,
+		list:         list,
 		cartSettings: newCartSettings(opts),
+		romList:      newRomList(list),
 	}
 }
 
@@ -44,7 +48,7 @@ func (ui *mainWindow) build() {
 		giu.SplitLayout(
 			giu.DirectionVertical,
 			&ui.sashPos,
-			buildRomList(opts),
+			ui.romList.build(),
 			ui.cartSettings.build(),
 		),
 	)

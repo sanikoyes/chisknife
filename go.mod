@@ -2,10 +2,13 @@ module chisknife
 
 go 1.25.0
 
-require github.com/AllenDang/giu v0.10.0
+require (
+	github.com/AllenDang/cimgui-go v1.1.0
+	github.com/AllenDang/giu v0.10.0
+	github.com/ncruces/zenity v0.10.14
+)
 
 require (
-	github.com/AllenDang/cimgui-go v1.1.0 // indirect
 	github.com/AllenDang/go-findfont v0.0.0-20200702051237-9f180485aeb8 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/dchest/jsmin v0.0.0-20220218165748-59f39799265f // indirect
@@ -14,7 +17,6 @@ require (
 	github.com/josephspurrier/goversioninfo v1.4.1 // indirect
 	github.com/mazznoer/csscolorparser v0.1.5 // indirect
 	github.com/napsy/go-css v0.0.0-20221107082635-4ed403047a64 // indirect
-	github.com/ncruces/zenity v0.10.14 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/randall77/makefat v0.0.0-20210315173500-7ddd0e42c844 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
