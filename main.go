@@ -5,6 +5,7 @@ package main
 import (
 	"chisknife/internal/lang"
 	"chisknife/internal/ui"
+	_ "chisknife/internal/utils/dpi"
 
 	"github.com/AllenDang/giu"
 )
@@ -13,5 +14,5 @@ import (
 // 创建并启动主窗口，初始化 UI 循环
 func main() {
 	wnd := giu.NewMasterWindow(lang.L("Chis Army Knife"), 640, 480, 0)
-	wnd.Run(ui.Loop)
+	wnd.Run(ui.MainWindow(wnd).Loop)
 }
