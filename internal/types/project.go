@@ -20,3 +20,9 @@ type Rom struct {
 
 // ROM 文件路径列表
 type RomList []Rom
+
+// 打包工程
+type Project struct {
+	Options Options `json:"options"` // 卡带选项
+	Roms    RomList `json:"roms"`    // rom列表
+}

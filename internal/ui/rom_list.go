@@ -16,48 +16,56 @@ import (
 )
 
 type romList struct {
-	list             *types.RomList // rom 列表
+	project          *types.Project // 打包工程数据
 	selectedRomIndex int            // 记录当前选中的 ROM 项索引
 	editingIndex     int            // 正在编辑的 ROM 项索引
 	editingName      string         // 编辑中的名称
 }
 
-func newRomList(list *types.RomList) *romList {
+func newRomList(project *types.Project) *romList {
 	return &romList{
-		list:             list,
+		project:          project,
 		selectedRomIndex: -1,
 		editingIndex:     -1,
 	}
 }
 
+// 刷新界面状态
+func (ui *romList) refresh() {
+	// 重置选中状态
+	ui.selectedRomIndex = -1
+	ui.editingIndex = -1
+	ui.editingName = ""
+}
+
 // 构建 ROM 列表界面组件
 // 显示所有 ROM 文件，支持选择和拖拽排序
 func (ui *romList) build() giu.Widget {
-	roms := ui.list
+	roms := ui.project.Roms
 
 	return giu.Column(
 		giu.Label(lang.L("ROM List")),
 		giu.Separator(),
 		giu.Child().Size(0, giu.Auto-56).Layout(
 			giu.Custom(func() {
-				if len(*roms) == 0 {
+				if len(roms) == 0 {
 					giu.Label(lang.L("No ROMs")).Build()
 					return
 				}
 
 				var edited bool
 
-				for i := range *roms {
+				for i := range roms {
 					if ui.buildDraggableRomItem(i) {
 						edited = true
 					}
 				}
 
 				// 检测选中项按回车键进入编辑模式
-				if !edited && ui.selectedRomIndex >= 0 && ui.selectedRomIndex < len(*roms) && ui.editingIndex == -1 {
+				if !edited && ui.selectedRomIndex >= 0 && ui.selectedRomIndex < len(roms) && ui.editingIndex == -1 {
 					if imgui.IsKeyPressedBool(imgui.KeyEnter) || imgui.IsKeyPressedBool(imgui.KeyKeypadEnter) {
 						ui.editingIndex = ui.selectedRomIndex
-						ui.editingName = (*roms)[ui.selectedRomIndex].Name
+						ui.editingName = roms[ui.selectedRomIndex].Name
 					}
 				}
 			}),
@@ -73,17 +81,17 @@ func (ui *romList) build() giu.Widget {
 				}).Disabled(ui.selectedRomIndex == -1),
 				giu.Button(lang.L("Clear")).OnClick(func() {
 					ui.clearRoms()
-				}).Disabled(len(*roms) == 0),
+				}).Disabled(len(roms) == 0),
 				giu.Button(lang.L("Sort")).OnClick(func() {
 					ui.sortRoms()
-				}).Disabled(len(*roms) < 2),
+				}).Disabled(len(roms) < 2),
 			),
 		),
 		giu.Align(giu.AlignCenter).To(
 			giu.Row(
 				giu.Button(lang.L("Build ROM")).OnClick(func() {
 					ui.buildRom()
-				}).Disabled(len(*roms) == 0),
+				}).Disabled(len(roms) == 0),
 			),
 		),
 	)
@@ -92,9 +100,9 @@ func (ui *romList) build() giu.Widget {
 // 构建单个可拖拽的 ROM 列表项
 // 支持点击选择和拖拽重新排序
 func (ui *romList) buildDraggableRomItem(index int) bool {
-	roms := *ui.list
+	roms := ui.project.Roms
 	defer func() {
-		*ui.list = roms
+		ui.project.Roms = roms
 	}()
 
 	// 只显示文件名，不显示完整路径
@@ -200,7 +208,7 @@ func (ui *romList) buildDraggableRomItem(index int) bool {
 
 // 添加rom文件路径
 func (ui *romList) appendRom(path string) {
-	roms := *ui.list
+	roms := ui.project.Roms
 
 	// 不重复添加rom
 	for _, rom := range roms {
@@ -218,7 +226,7 @@ func (ui *romList) appendRom(path string) {
 			Name: name,
 			Path: path,
 		})
-		*ui.list = roms
+		ui.project.Roms = roms
 	}
 }
 
@@ -260,12 +268,12 @@ func (ui *romList) addRom() {
 
 // 移除选中的 ROM 文件
 func (ui *romList) removeRom() {
-	roms := *ui.list
+	roms := ui.project.Roms
 
 	if ui.selectedRomIndex >= 0 && ui.selectedRomIndex < len(roms) {
 		// 删除选中的项
 		roms = slices.Delete(roms, ui.selectedRomIndex, ui.selectedRomIndex+1)
-		*ui.list = roms
+		ui.project.Roms = roms
 
 		// 调整选中索引
 		ui.selectedRomIndex = -1
@@ -274,14 +282,14 @@ func (ui *romList) removeRom() {
 
 // 清空所有 ROM 文件
 func (ui *romList) clearRoms() {
-	(*ui.list) = types.RomList{}
+	ui.project.Roms = types.RomList{}
 	ui.selectedRomIndex = -1
 }
 
 // 按文件名排序 ROM 列表
 // 如果当前已经是正序，则切换为倒序
 func (ui *romList) sortRoms() {
-	roms := *ui.list
+	roms := ui.project.Roms
 
 	if len(roms) <= 1 {
 		return
@@ -315,7 +323,7 @@ func (ui *romList) sortRoms() {
 		}
 	}
 
-	*ui.list = roms
+	ui.project.Roms = roms
 
 	// 重置选中索引
 	ui.selectedRomIndex = -1
