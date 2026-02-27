@@ -1,14 +1,21 @@
 {
+    "Add": "添加",
+    "Build ROM": "生成ROM",
     "Cartridge Type": "卡带类型",
     "Chis Army Knife": "ChisFlash 瑞士军刀",
+    "Clear": "清除",
     "Have Battery": "有电池",
     "Hello World!": "你好,世界!",
     "Menu Background": "菜单背景",
     "Menu Settings": "菜单设置",
     "Minimal ROM Size": "最小ROM大小",
+    "No ROMs": "没有ROM",
     "ROM List": "ROM列表",
+    "Remove": "移除",
     "SRAM 1M save support": "SRAM 1M存档支持",
+    "Select ROM files": "选择ROM文件",
     "Select the background": "选择背景",
+    "Sort": "排序",
     "Split ROM": "分割ROM",
     "Use RTS": "使用RTS"
 }

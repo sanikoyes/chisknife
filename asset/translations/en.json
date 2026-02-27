@@ -1,13 +1,20 @@
 {
+    "Add": "Add",
+    "Build ROM": "Build ROM",
     "Cartridge Type": "Cartridge Type",
     "Chis Army Knife": "Chis Army Knife",
+    "Clear": "Clear",
     "Have Battery": "Have Battery",
     "Menu Background": "Menu Background",
     "Menu Settings": "Menu Settings",
     "Minimal ROM Size": "Minimal ROM Size",
+    "No ROMs": "No ROMs",
     "ROM List": "ROM List",
+    "Remove": "Remove",
     "SRAM 1M save support": "SRAM 1M save support",
+    "Select ROM files": "Select ROM files",
     "Select the background": "Select the background",
+    "Sort": "Sort",
     "Split ROM": "Split ROM",
     "Use RTS": "Use RTS"
 }
