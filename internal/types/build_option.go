@@ -12,7 +12,11 @@ type Options struct {
 	Sram1MSaveSupport bool  `json:"sram1m_save_support"` // 是否支持 1M SRAM 存档
 }
 
-// 存储 ROM 文件列表
-type RomList struct {
-	Roms []string `json:"roms"` // ROM 文件路径列表
+// ROM 文件
+type Rom struct {
+	Name string `json:"name"` // 文件名
+	Path string `json:"path"` // 文件路径
 }
+
+// ROM 文件路径列表
+type RomList []Rom

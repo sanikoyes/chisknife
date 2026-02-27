@@ -5,6 +5,8 @@ import (
 	"chisknife/internal/lang"
 	"chisknife/internal/types"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"unsafe"
 
@@ -14,34 +16,49 @@ import (
 )
 
 type romList struct {
-	list             *types.RomList
-	selectedRomIndex int // 记录当前选中的 ROM 项索引
+	list             *types.RomList // rom 列表
+	selectedRomIndex int            // 记录当前选中的 ROM 项索引
+	editingIndex     int            // 正在编辑的 ROM 项索引
+	editingName      string         // 编辑中的名称
 }
 
 func newRomList(list *types.RomList) *romList {
 	return &romList{
 		list:             list,
 		selectedRomIndex: -1,
+		editingIndex:     -1,
 	}
 }
 
 // 构建 ROM 列表界面组件
 // 显示所有 ROM 文件，支持选择和拖拽排序
 func (ui *romList) build() giu.Widget {
-	roms := ui.list.Roms
+	roms := ui.list
 
 	return giu.Column(
 		giu.Label(lang.L("ROM List")),
 		giu.Separator(),
-		giu.Child().Size(0, giu.Auto-30).Layout(
+		giu.Child().Size(0, giu.Auto-56).Layout(
 			giu.Custom(func() {
-				if len(roms) == 0 {
+				if len(*roms) == 0 {
 					giu.Label(lang.L("No ROMs")).Build()
 					return
 				}
 
-				for i := range roms {
-					ui.buildDraggableRomItem(&roms, i)
+				var edited bool
+
+				for i := range *roms {
+					if ui.buildDraggableRomItem(i) {
+						edited = true
+					}
+				}
+
+				// 检测选中项按回车键进入编辑模式
+				if !edited && ui.selectedRomIndex >= 0 && ui.selectedRomIndex < len(*roms) && ui.editingIndex == -1 {
+					if imgui.IsKeyPressedBool(imgui.KeyEnter) || imgui.IsKeyPressedBool(imgui.KeyKeypadEnter) {
+						ui.editingIndex = ui.selectedRomIndex
+						ui.editingName = (*roms)[ui.selectedRomIndex].Name
+					}
 				}
 			}),
 		),
@@ -53,10 +70,20 @@ func (ui *romList) build() giu.Widget {
 				}),
 				giu.Button(lang.L("Remove")).OnClick(func() {
 					ui.removeRom()
-				}),
+				}).Disabled(ui.selectedRomIndex == -1),
 				giu.Button(lang.L("Clear")).OnClick(func() {
 					ui.clearRoms()
-				}),
+				}).Disabled(len(*roms) == 0),
+				giu.Button(lang.L("Sort")).OnClick(func() {
+					ui.sortRoms()
+				}).Disabled(len(*roms) < 2),
+			),
+		),
+		giu.Align(giu.AlignCenter).To(
+			giu.Row(
+				giu.Button(lang.L("Build ROM")).OnClick(func() {
+					ui.buildRom()
+				}).Disabled(len(*roms) == 0),
 			),
 		),
 	)
@@ -64,11 +91,58 @@ func (ui *romList) build() giu.Widget {
 
 // 构建单个可拖拽的 ROM 列表项
 // 支持点击选择和拖拽重新排序
-func (ui *romList) buildDraggableRomItem(roms *[]string, index int) {
-	rom := (*roms)[index]
+func (ui *romList) buildDraggableRomItem(index int) bool {
+	roms := *ui.list
+	defer func() {
+		*ui.list = roms
+	}()
+
 	// 只显示文件名，不显示完整路径
-	displayName := filepath.Base(rom)
+	rom := roms[index]
+	displayName := rom.Name
 	payloadType := "ROM_ITEM"
+
+	// 如果正在编辑此项，显示输入框
+	if ui.editingIndex == index {
+		giu.SetKeyboardFocusHere()
+
+		giu.InputText(&ui.editingName).
+			Flags(giu.InputTextFlagsEnterReturnsTrue).
+			Size(giu.Auto).
+			Build()
+
+		var shouldExited bool
+		var shouldUpdate bool
+
+		// 检测回车键确认（InputTextFlagsEnterReturnsTrue 会让输入框在按回车时失去焦点）
+		if imgui.IsItemDeactivatedAfterEdit() {
+			shouldExited = true
+			shouldUpdate = true
+		}
+
+		// 检测点击其他地方退出编辑
+		if imgui.IsMouseClickedBool(imgui.MouseButtonLeft) && !imgui.IsItemHovered() {
+			shouldExited = true
+			shouldUpdate = true
+		}
+
+		// 在 Custom 外部检测 ESC 键
+		if imgui.IsKeyPressedBool(imgui.KeyEscape) {
+			shouldExited = true
+			shouldUpdate = false
+		}
+
+		// 检查是否退出编辑
+		if shouldExited {
+			// 需要更新编辑内容？
+			if shouldUpdate && ui.editingName != "" {
+				roms[index].Name = ui.editingName
+			}
+			ui.editingIndex = -1
+		}
+
+		return shouldExited || shouldUpdate
+	}
 
 	// 创建可选择和可拖拽的列表项
 	giu.Row(
@@ -76,6 +150,11 @@ func (ui *romList) buildDraggableRomItem(roms *[]string, index int) {
 			Selected(index == ui.selectedRomIndex).
 			OnClick(func() {
 				ui.selectedRomIndex = index
+			}).
+			OnDClick(func() {
+				// 双击进入编辑模式
+				ui.editingIndex = index
+				ui.editingName = rom.Name
 			}).
 			Flags(giu.SelectableFlagsAllowDoubleClick),
 	).Build()
@@ -99,11 +178,9 @@ func (ui *romList) buildDraggableRomItem(roms *[]string, index int) {
 			sourceIndexPtr := (*int)(unsafe.Pointer(dataPtr))
 			if sourceIndexPtr != nil {
 				sourceIndex := *sourceIndexPtr
-				if sourceIndex != index && sourceIndex >= 0 && sourceIndex < len(*roms) {
+				if sourceIndex != index && sourceIndex >= 0 && sourceIndex < len(roms) {
 					// 交换
-					tmp := (*roms)[sourceIndex]
-					(*roms)[sourceIndex] = (*roms)[index]
-					(*roms)[index] = tmp
+					roms[sourceIndex], roms[index] = roms[index], roms[sourceIndex]
 
 					// 更新选中索引以跟随移动的项
 					switch ui.selectedRomIndex {
@@ -116,6 +193,32 @@ func (ui *romList) buildDraggableRomItem(roms *[]string, index int) {
 			}
 		}
 		imgui.EndDragDropTarget()
+	}
+
+	return false
+}
+
+// 添加rom文件路径
+func (ui *romList) appendRom(path string) {
+	roms := *ui.list
+
+	// 不重复添加rom
+	for _, rom := range roms {
+		if rom.Path == path {
+			return
+		}
+	}
+
+	// 验证文件扩展名
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".gba", ".nes", ".gb", ".gbc":
+		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		roms = append(roms, types.Rom{
+			Name: name,
+			Path: path,
+		})
+		*ui.list = roms
 	}
 }
 
@@ -131,54 +234,103 @@ func (ui *romList) addRom() {
 				Patterns: []string{"*.gba"},
 				CaseFold: true,
 			},
-			{
-				Name:     "NES ROM files",
-				Patterns: []string{"*.nes"},
-				CaseFold: true,
-			},
-			{
-				Name:     "GB/GBC ROM files",
-				Patterns: []string{"*.gb", "*.gbc"},
-				CaseFold: true,
-			},
-			{
-				Name:     "All files",
-				Patterns: []string{"*"},
-			},
+			// {
+			// 	Name:     "NES ROM files",
+			// 	Patterns: []string{"*.nes"},
+			// 	CaseFold: true,
+			// },
+			// {
+			// 	Name:     "GB/GBC ROM files",
+			// 	Patterns: []string{"*.gb", "*.gbc"},
+			// 	CaseFold: true,
+			// },
+			// {
+			// 	Name:     "All files",
+			// 	Patterns: []string{"*"},
+			// },
 		},
 	)
 
 	if err == nil && len(files) > 0 {
 		for _, file := range files {
-			if file != "" {
-				// 验证文件扩展名
-				ext := strings.ToLower(filepath.Ext(file))
-				if ext == ".gba" || ext == ".nes" || ext == ".gb" || ext == ".gbc" {
-					ui.list.Roms = append(ui.list.Roms, file)
-				}
-			}
+			ui.appendRom(file)
 		}
 	}
 }
 
 // 移除选中的 ROM 文件
 func (ui *romList) removeRom() {
-	if ui.selectedRomIndex >= 0 && ui.selectedRomIndex < len(ui.list.Roms) {
+	roms := *ui.list
+
+	if ui.selectedRomIndex >= 0 && ui.selectedRomIndex < len(roms) {
 		// 删除选中的项
-		ui.list.Roms = append(
-			ui.list.Roms[:ui.selectedRomIndex],
-			ui.list.Roms[ui.selectedRomIndex+1:]...,
-		)
+		roms = slices.Delete(roms, ui.selectedRomIndex, ui.selectedRomIndex+1)
+		*ui.list = roms
 
 		// 调整选中索引
-		if ui.selectedRomIndex >= len(ui.list.Roms) {
-			ui.selectedRomIndex = len(ui.list.Roms) - 1
-		}
+		ui.selectedRomIndex = -1
 	}
 }
 
 // 清空所有 ROM 文件
 func (ui *romList) clearRoms() {
-	ui.list.Roms = []string{}
+	(*ui.list) = types.RomList{}
 	ui.selectedRomIndex = -1
+}
+
+// 按文件名排序 ROM 列表
+// 如果当前已经是正序，则切换为倒序
+func (ui *romList) sortRoms() {
+	roms := *ui.list
+
+	if len(roms) <= 1 {
+		return
+	}
+
+	// 创建一个副本用于比较
+	original := make(types.RomList, len(roms))
+	copy(original, roms)
+
+	// 按文件名排序
+	sort.Slice(roms, func(i, j int) bool {
+		nameI := strings.ToLower((roms)[i].Name)
+		nameJ := strings.ToLower((roms)[j].Name)
+		return nameI < nameJ
+	})
+
+	// 检查排序后是否发生变化
+	isSame := true
+	for i := range roms {
+		if roms[i].Path != original[i].Path {
+			isSame = false
+			break
+		}
+	}
+
+	// 如果排序后没有变化，或者当前已经是正序状态，则进行倒序
+	if isSame {
+		// 倒序
+		for i, j := 0, len(roms)-1; i < j; i, j = i+1, j-1 {
+			roms[i], roms[j] = roms[j], roms[i]
+		}
+	}
+
+	*ui.list = roms
+
+	// 重置选中索引
+	ui.selectedRomIndex = -1
+}
+
+// 生成rom文件
+func (ui *romList) buildRom() {
+
+}
+
+// 处理从外部拖拽文件到列表区域
+// 支持从文件管理器拖拽 gba/nes/gb/gbc 文件
+func (ui *romList) handleExternalFileDrop(filePaths []string) {
+	for _, file := range filePaths {
+		file = strings.TrimSpace(file)
+		ui.appendRom(file)
+	}
 }

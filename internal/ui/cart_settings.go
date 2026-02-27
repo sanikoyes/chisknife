@@ -13,16 +13,17 @@ import (
 
 // 卡带设置界面组件
 type cartSettings struct {
-	opts *types.Options // 构建选项引用
-	tex  *giu.Texture   // 背景图片纹理
+	opts      *types.Options // 构建选项引用
+	tex       *giu.Texture   // 背景图片纹理
+	texLoaded bool           // 纹理是否已加载
 }
 
 // 创建卡带设置组件实例
 // 加载背景图片纹理并初始化配置
 func newCartSettings(opts *types.Options) *cartSettings {
 	return &cartSettings{
-		opts: opts,
-		tex:  utils.LoadTexture(asset.Background),
+		opts:      opts,
+		texLoaded: false,
 	}
 }
 
@@ -30,6 +31,12 @@ func newCartSettings(opts *types.Options) *cartSettings {
 // 包括卡带类型、ROM 大小、各种选项和背景图片设置
 func (ui *cartSettings) build() giu.Widget {
 	opts := ui.opts
+
+	// 延迟加载纹理，确保在渲染上下文中加载
+	if !ui.texLoaded {
+		ui.tex = utils.LoadTexture(asset.Background)
+		ui.texLoaded = true
+	}
 
 	cartTypeNames := preset.CartridgeTypes.Names()
 	romSizeDescs := preset.RomSizes.Descs()

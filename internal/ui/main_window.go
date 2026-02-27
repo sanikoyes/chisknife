@@ -29,9 +29,7 @@ func newMainWindow() *mainWindow {
 		Sram1MSaveSupport: false,
 	}
 
-	list := &types.RomList{
-		Roms: []string{},
-	}
+	list := &types.RomList{}
 
 	return &mainWindow{
 		sashPos:      320,
@@ -42,8 +40,8 @@ func newMainWindow() *mainWindow {
 	}
 }
 
-// 构建主窗口的界面布局
-func (ui *mainWindow) build() {
+// 主窗口运行逻辑
+func (ui *mainWindow) Loop() {
 	giu.SingleWindow().RegisterKeyboardShortcuts().Layout(
 		giu.SplitLayout(
 			giu.DirectionVertical,
@@ -58,10 +56,14 @@ func (ui *mainWindow) build() {
 var w *mainWindow
 
 // 主界面循环函数
-func Loop() {
+func MainWindow(wnd *giu.MasterWindow) *mainWindow {
 	if w == nil {
 		w = newMainWindow()
 	}
-	// 在每一帧被调用以更新和渲染界面
-	w.build()
+
+	wnd.SetDropCallback(func(s []string) {
+		w.romList.handleExternalFileDrop(s)
+	})
+
+	return w
 }
