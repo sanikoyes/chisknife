@@ -17,3 +17,19 @@ var Background []byte
 //
 //go:embed translations/*.json
 var TranslationsFS embed.FS
+
+// GBA sram ips补丁(特定游戏)
+//
+//go:embed sram_ips/*.ips
+var SramIpsFS embed.FS
+
+// GBA免电补丁内嵌代码数据
+//
+//go:embed payload/batteryless.bin
+var PayloadBatteryLess []byte
+
+// GBA实时存档/rts内嵌代码数据
+//
+//go:embed payload/rts.bin
+var PayloadRts []byte
+
