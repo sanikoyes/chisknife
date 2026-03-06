@@ -36,7 +36,7 @@ func (ui *cartSettings) refresh() {
 // 构建卡带设置界面
 // 包括卡带类型、ROM 大小、各种选项和背景图片设置
 func (ui *cartSettings) build() giu.Widget {
-	opts := ui.project.Options
+	opts := &ui.project.Options
 
 	// 延迟加载纹理，确保在渲染上下文中加载
 	if !ui.texLoaded {

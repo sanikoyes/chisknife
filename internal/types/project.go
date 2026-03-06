@@ -23,6 +23,7 @@ type RomList []Rom
 
 // 打包工程
 type Project struct {
-	Options Options `json:"options"` // 卡带选项
-	Roms    RomList `json:"roms"`    // rom列表
+	Options         Options `json:"options"`           // 卡带选项
+	Roms            RomList `json:"roms"`              // rom列表
+	LastBuildOutput string  `json:"last_build_output"` // 上次成功构建的ROM文件路径
 }

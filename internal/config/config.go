@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// Config 应用程序配置
+// 应用程序配置
 type Config struct {
 	RecentProjects []string `json:"recent_projects"` // 最近打开的项目列表
 }
@@ -28,7 +28,7 @@ func init() {
 	configPath = filepath.Join(configDir, "config.json")
 }
 
-// Load 加载配置
+// 加载配置
 func Load() *Config {
 	if appConfig != nil {
 		return appConfig
@@ -47,7 +47,7 @@ func Load() *Config {
 	return appConfig
 }
 
-// Save 保存配置
+// 保存配置
 func Save() error {
 	if appConfig == nil {
 		return nil
@@ -61,7 +61,7 @@ func Save() error {
 	return os.WriteFile(configPath, data, 0644)
 }
 
-// AddRecentProject 添加最近打开的项目
+// 添加最近打开的项目
 func AddRecentProject(path string) {
 	if appConfig == nil {
 		appConfig = Load()
@@ -89,7 +89,7 @@ func AddRecentProject(path string) {
 	Save()
 }
 
-// GetRecentProjects 获取最近打开的项目列表（过滤不存在的文件）
+// 获取最近打开的项目列表（过滤不存在的文件）
 func GetRecentProjects() []string {
 	if appConfig == nil {
 		appConfig = Load()
@@ -114,7 +114,7 @@ func GetRecentProjects() []string {
 	return validProjects
 }
 
-// GetLastProject 获取最后打开的项目
+// 获取最后打开的项目
 func GetLastProject() string {
 	projects := GetRecentProjects()
 	if len(projects) > 0 {

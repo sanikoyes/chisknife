@@ -3,6 +3,7 @@
 package ui
 
 import (
+	"chisknife/asset"
 	"chisknife/internal/config"
 	"chisknife/internal/lang"
 	"chisknife/internal/types"
@@ -20,8 +21,10 @@ type mainWindow struct {
 	sashPos            float32        // 分割面板的位置
 	cartSettings       *cartSettings  // 卡带设置组件
 	romList            *romList       // rom列表组件
+	buildProgress      *buildProgress // 打包进度组件
 	recentProjects     []string       // 最近打开的项目列表
 	currentProjectPath string         // 当前项目文件路径
+	defaultFont        *giu.FontInfo  // 主界面字体
 }
 
 // 创建并初始化主窗口实例
@@ -48,9 +51,16 @@ func newMainWindow() *mainWindow {
 		project:            project,
 		cartSettings:       newCartSettings(project),
 		romList:            newRomList(project),
+		buildProgress:      newBuildProgress(),
 		recentProjects:     []string{},
 		currentProjectPath: "",
+		defaultFont:        giu.Context.FontAtlas.AddFontFromBytes("zpix", asset.IBMPlexMonoSCFont, 24),
 	}
+
+	// 设置 romList 的主窗口引用
+	mw.romList.mainWindow = mw
+	// 设置 buildProgress 的主窗口引用
+	mw.buildProgress.mainWindow = mw
 
 	// 自动加载最后一个项目
 	lastProject := config.GetLastProject()
@@ -85,6 +95,7 @@ func (ui *mainWindow) saveProjectAs() {
 			},
 		},
 	)
+
 	if err == nil && filePath != "" {
 		ui.doSaveProject(filePath)
 	}
@@ -143,6 +154,7 @@ func (ui *mainWindow) doLoadProject(filePath string) error {
 
 	ui.project.Options = project.Options
 	ui.project.Roms = project.Roms
+	ui.project.LastBuildOutput = project.LastBuildOutput
 	ui.cartSettings.refresh()
 	ui.romList.refresh()
 
@@ -180,45 +192,57 @@ func (ui *mainWindow) buildRecentMenu() giu.Widget {
 	return giu.Layout(items)
 }
 
+// 获取当前页
+func (ui *mainWindow) page() giu.Widget {
+	switch {
+	case ui.buildProgress.isOpen:
+		// 打包进度窗口
+		return ui.buildProgress.build()
+	default:
+		return giu.SplitLayout(
+			giu.DirectionVertical,
+			&ui.sashPos,
+			ui.romList.build(),
+			ui.cartSettings.build(),
+		)
+	}
+}
+
 // 主窗口运行逻辑
 func (ui *mainWindow) Loop() {
 	// 更新最近项目列表
 	ui.updateRecentProjects()
 
-	giu.SingleWindow().
-		Flags(giu.WindowFlagsNoTitleBar+giu.WindowFlagsMenuBar).
+	giu.SingleWindowWithMenuBar().
 		RegisterKeyboardShortcuts().
 		Layout(
-			giu.MenuBar().Layout(
-				giu.Menu(lang.L("File")).Layout(
-					giu.MenuItem(lang.L("Save Project")).OnClick(ui.saveProject),
-					giu.MenuItem(lang.L("Save Project As")).OnClick(ui.saveProjectAs),
-					giu.MenuItem(lang.L("Load Project")).OnClick(ui.loadProject),
-					giu.Separator(),
-					giu.Menu(lang.L("Recent")).Layout(
-						ui.buildRecentMenu(),
+			giu.Style().SetFont(ui.defaultFont).SetFontSize(16).To(
+				giu.MenuBar().Layout(
+					giu.Menu(lang.L("File")).Layout(
+						giu.MenuItem(lang.L("Save Project")).OnClick(ui.saveProject),
+						giu.MenuItem(lang.L("Save Project As")).OnClick(ui.saveProjectAs),
+						giu.MenuItem(lang.L("Load Project")).OnClick(ui.loadProject),
+						giu.Separator(),
+						giu.Menu(lang.L("Recent")).Layout(
+							ui.buildRecentMenu(),
+						),
+					),
+					giu.Menu(lang.L("ROM")).Layout(
+						giu.MenuItem(lang.L("Add")).OnClick(func() {
+							ui.romList.addRom()
+						}),
+						giu.MenuItem(lang.L("Remove")).OnClick(func() {
+							ui.romList.removeRom()
+						}).Enabled(ui.romList.selectedRomIndex != -1),
+						giu.MenuItem(lang.L("Clear")).OnClick(func() {
+							ui.romList.clearRoms()
+						}).Enabled(len(ui.project.Roms) > 0),
+						giu.MenuItem(lang.L("Sort")).OnClick(func() {
+							ui.romList.sortRoms()
+						}).Enabled(len(ui.project.Roms) > 1),
 					),
 				),
-				giu.Menu(lang.L("ROM")).Layout(
-					giu.MenuItem(lang.L("Add")).OnClick(func() {
-						ui.romList.addRom()
-					}),
-					giu.MenuItem(lang.L("Remove")).OnClick(func() {
-						ui.romList.removeRom()
-					}).Enabled(ui.romList.selectedRomIndex != -1),
-					giu.MenuItem(lang.L("Clear")).OnClick(func() {
-						ui.romList.clearRoms()
-					}).Enabled(len(ui.project.Roms) > 0),
-					giu.MenuItem(lang.L("Sort")).OnClick(func() {
-						ui.romList.sortRoms()
-					}).Enabled(len(ui.project.Roms) > 1),
-				),
-			),
-			giu.SplitLayout(
-				giu.DirectionVertical,
-				&ui.sashPos,
-				ui.romList.build(),
-				ui.cartSettings.build(),
+				ui.page(),
 			),
 		)
 }

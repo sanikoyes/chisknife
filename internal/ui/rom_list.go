@@ -2,8 +2,10 @@
 package ui
 
 import (
+	"chisknife/internal/gba/builder/menu"
 	"chisknife/internal/lang"
 	"chisknife/internal/types"
+	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -17,6 +19,7 @@ import (
 
 type romList struct {
 	project          *types.Project // 打包工程数据
+	mainWindow       *mainWindow    // 主窗口引用
 	selectedRomIndex int            // 记录当前选中的 ROM 项索引
 	editingIndex     int            // 正在编辑的 ROM 项索引
 	editingName      string         // 编辑中的名称
@@ -25,6 +28,7 @@ type romList struct {
 func newRomList(project *types.Project) *romList {
 	return &romList{
 		project:          project,
+		mainWindow:       nil, // 稍后设置
 		selectedRomIndex: -1,
 		editingIndex:     -1,
 	}
@@ -242,20 +246,20 @@ func (ui *romList) addRom() {
 				Patterns: []string{"*.gba"},
 				CaseFold: true,
 			},
-			// {
-			// 	Name:     "NES ROM files",
-			// 	Patterns: []string{"*.nes"},
-			// 	CaseFold: true,
-			// },
-			// {
-			// 	Name:     "GB/GBC ROM files",
-			// 	Patterns: []string{"*.gb", "*.gbc"},
-			// 	CaseFold: true,
-			// },
-			// {
-			// 	Name:     "All files",
-			// 	Patterns: []string{"*"},
-			// },
+			{
+				Name:     "NES ROM files",
+				Patterns: []string{"*.nes"},
+				CaseFold: true,
+			},
+			{
+				Name:     "GB/GBC ROM files",
+				Patterns: []string{"*.gb", "*.gbc"},
+				CaseFold: true,
+			},
+			{
+				Name:     "All files",
+				Patterns: []string{"*"},
+			},
 		},
 	)
 
@@ -331,7 +335,92 @@ func (ui *romList) sortRoms() {
 
 // 生成rom文件
 func (ui *romList) buildRom() {
+	if ui.mainWindow == nil || ui.mainWindow.buildProgress == nil {
+		return
+	}
 
+	// 使用上次构建的路径作为默认值
+	executableDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		executableDir = "."
+	}
+	defaultPath := executableDir
+	if ui.project.LastBuildOutput != "" {
+		defaultPath = ui.project.LastBuildOutput
+	}
+
+	// 弹出文件保存对话框
+	outputPath, err := zenity.SelectFileSave(
+		zenity.Title(lang.L("Save ROM As")),
+		zenity.Filename(defaultPath),
+		zenity.FileFilters{
+			{
+				Name:     "GBA ROM files",
+				Patterns: []string{"*.gba"},
+				CaseFold: true,
+			},
+		},
+	)
+
+	// 用户取消或出错
+	if err != nil || outputPath == "" {
+		return
+	}
+
+	// 确保文件扩展名为 .gba
+	if !strings.HasSuffix(strings.ToLower(outputPath), ".gba") {
+		outputPath += ".gba"
+	}
+
+	// 打开进度窗口
+	ui.mainWindow.buildProgress.open()
+
+	// 准备构建选项
+	opts := ui.prepareBuildOptions()
+	opts.OutputPath = outputPath // 使用用户选择的路径
+
+	// 准备游戏列表
+	games := ui.prepareGameList()
+
+	// 开始构建
+	ui.mainWindow.buildProgress.startBuild(opts, games)
+}
+
+// 准备构建选项
+func (ui *romList) prepareBuildOptions() menu.BuildOptions {
+	project := ui.project
+	cartType := int(project.Options.CartridgeType) + 1 // 转换为 1-based
+
+	return menu.BuildOptions{
+		CartridgeType:       cartType,
+		BatteryPresent:      project.Options.HaveBattery,
+		MinRomSize:          int(project.Options.MinimalRomSize),
+		SRAMBankType:        0, // 默认值
+		BatterylessAutoSave: false,
+		UseRTS:              project.Options.UseRTS,
+		ConfigPath:          "builder.json",
+		RomBasePath:         "game_patched",
+		OutputPath:          "multimenu.gba",
+		BgPath:              "",
+		Split:               project.Options.SplitROM,
+	}
+}
+
+// 准备游戏列表
+func (ui *romList) prepareGameList() []menu.GameInput {
+	games := make([]menu.GameInput, 0, len(ui.project.Roms))
+
+	for i, rom := range ui.project.Roms {
+		saveSlot := i + 1 // 1-based 索引
+		game := menu.GameInput{
+			Path:     rom.Path,
+			Name:     rom.Name,
+			SaveSlot: &saveSlot,
+		}
+		games = append(games, game)
+	}
+
+	return games
 }
 
 // 处理从外部拖拽文件到列表区域

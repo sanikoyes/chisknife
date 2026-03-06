@@ -33,3 +33,7 @@ var PayloadBatteryLess []byte
 //go:embed payload/rts.bin
 var PayloadRts []byte
 
+// 最像素字体
+//
+//go:embed IBMPlexMonoSC-Regular.ttf
+var IBMPlexMonoSCFont []byte
