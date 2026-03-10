@@ -30,21 +30,8 @@ type mainWindow struct {
 // 创建并初始化主窗口实例
 func newMainWindow() *mainWindow {
 	// 设置默认的构建选项
-	opts := types.Options{
-		CartridgeType:     0,
-		MinimalRomSize:    0,
-		HaveBattery:       true,
-		UseRTS:            false,
-		SplitROM:          false,
-		Sram1MSaveSupport: false,
-	}
-
-	list := types.RomList{}
-
-	project := &types.Project{
-		Options: opts,
-		Roms:    list,
-	}
+	project := &types.Project{}
+	project.Reset()
 
 	mw := &mainWindow{
 		sashPos:            320,
@@ -71,6 +58,19 @@ func newMainWindow() *mainWindow {
 	return mw
 }
 
+// 创建新项目
+func (ui *mainWindow) newProject() {
+	// 重置为默认的构建选项
+	ui.project.Reset()
+
+	// 清空当前项目路径
+	ui.currentProjectPath = ""
+
+	// 刷新界面
+	ui.cartSettings.refresh()
+	ui.romList.refresh()
+}
+
 // 保存项目到 JSON 文件
 func (ui *mainWindow) saveProject() {
 	// 如果已有路径，直接保存
@@ -89,7 +89,7 @@ func (ui *mainWindow) saveProjectAs() {
 		zenity.Title(lang.L("Save Project As")),
 		zenity.FileFilters{
 			{
-				Name:     "JSON files",
+				Name:     lang.L("JSON files"),
 				Patterns: []string{"*.json"},
 				CaseFold: true,
 			},
@@ -108,7 +108,7 @@ func (ui *mainWindow) loadProject() {
 		zenity.Title(lang.L("Load Project")),
 		zenity.FileFilters{
 			{
-				Name:     "JSON files",
+				Name:     lang.L("JSON files"),
 				Patterns: []string{"*.json"},
 				CaseFold: true,
 			},
@@ -219,6 +219,8 @@ func (ui *mainWindow) Loop() {
 			giu.Style().SetFont(ui.defaultFont).SetFontSize(16).To(
 				giu.MenuBar().Layout(
 					giu.Menu(lang.L("File")).Layout(
+						giu.MenuItem(lang.L("New")).OnClick(ui.newProject),
+						giu.Separator(),
 						giu.MenuItem(lang.L("Save Project")).OnClick(ui.saveProject),
 						giu.MenuItem(lang.L("Save Project As")).OnClick(ui.saveProjectAs),
 						giu.MenuItem(lang.L("Load Project")).OnClick(ui.loadProject),

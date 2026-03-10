@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"chisknife/internal/lang"
 	"chisknife/internal/preset"
 )
 
@@ -185,12 +186,12 @@ func Build(opts BuildOptions) (*BuildResult, error) {
 	// 设置日志回调
 	currentLogCallback = opts.LogCallback
 
-	logp("GBA Multi Game Menu ROM Builder v%s\nby Lesserkuma\n\n", AppVersion)
+	logp(lang.L("GBA Multi Game Menu ROM Builder v%s\nby Lesserkuma\n\n"), AppVersion)
 
 	// 检查输出文件名
 	if opts.Output == MenuROMName {
 		return &BuildResult{
-			Message: "Error: The file must not be named \"lk_multimenu.gba\"",
+			Message: lang.L("Error: The file must not be named \"lk_multimenu.gba\""),
 			Success: false,
 		}, fmt.Errorf("invalid output name")
 	}
@@ -198,7 +199,7 @@ func Build(opts BuildOptions) (*BuildResult, error) {
 	// 检查菜单 ROM 是否存在
 	if _, err := os.Stat(MenuROMName); os.IsNotExist(err) {
 		return &BuildResult{
-			Message: "Error: The Menu ROM is missing. Expected file name: \"lk_multimenu.gba\"",
+			Message: lang.L("Error: The Menu ROM is missing. Expected file name: \"lk_multimenu.gba\""),
 			Success: false,
 		}, fmt.Errorf("menu ROM not found")
 	}
@@ -207,7 +208,7 @@ func Build(opts BuildOptions) (*BuildResult, error) {
 	config, err := loadOrGenerateConfig(opts)
 	if err != nil {
 		return &BuildResult{
-			Message: fmt.Sprintf("Error: %v", err),
+			Message: fmt.Sprintf(lang.L("Error: %v"), err),
 			Success: false,
 		}, err
 	}
@@ -215,7 +216,7 @@ func Build(opts BuildOptions) (*BuildResult, error) {
 	// 如果是新生成的配置，返回
 	if config == nil {
 		return &BuildResult{
-			Message: "A new configuration was created.",
+			Message: lang.L("A new configuration was created."),
 			Success: true,
 		}, nil
 	}
@@ -242,7 +243,7 @@ func buildROM(opts BuildOptions, config *Config) (*BuildResult, error) {
 	cartridgeType := config.Cartridge.Type - 1
 	if cartridgeType < 0 || cartridgeType >= len(preset.CartridgeTypes) {
 		return &BuildResult{
-			Message: "Error: Invalid cartridge type",
+			Message: lang.L("Error: Invalid cartridge type"),
 			Success: false,
 		}, fmt.Errorf("invalid cartridge type")
 	}
@@ -270,7 +271,7 @@ func buildROM(opts BuildOptions, config *Config) (*BuildResult, error) {
 	menuROM, err := os.ReadFile(MenuROMName)
 	if err != nil {
 		return &BuildResult{
-			Message: "Error: Failed to read menu ROM",
+			Message: lang.L("Error: Failed to read menu ROM"),
 			Success: false,
 		}, err
 	}
@@ -286,7 +287,7 @@ func buildROM(opts BuildOptions, config *Config) (*BuildResult, error) {
 	// 处理背景图片
 	if opts.Bg != "" || fileExists("bg.png") {
 		if err := updateBackground(menuROM, opts.Bg); err != nil {
-			logp("Warning: Failed to update background image: %v\n", err)
+			logp(lang.L("Warning: Failed to update background image: %v\n"), err)
 		}
 	}
 
@@ -338,7 +339,7 @@ func buildROM(opts BuildOptions, config *Config) (*BuildResult, error) {
 	outputFile := strings.Replace(opts.Output, "<CODE>", romCode, -1)
 	if err := writeOutput(opts, compilation, romSize, flashSize, outputFile); err != nil {
 		return &BuildResult{
-			Message: fmt.Sprintf("Error: Failed to write output: %v", err),
+			Message: fmt.Sprintf(lang.L("Error: Failed to write output: %v"), err),
 			Success: false,
 		}, err
 	}
@@ -347,9 +348,9 @@ func buildROM(opts BuildOptions, config *Config) (*BuildResult, error) {
 	result.ROMSize = int64(romSize)
 
 	if len(result.Data) > 0 {
-		result.Message = fmt.Sprintf("Target rom generated. Some games failed to be included.")
+		result.Message = lang.L("Target rom generated. Some games failed to be included.")
 	} else {
-		result.Message = "Target rom generated."
+		result.Message = lang.L("Target rom generated.")
 	}
 
 	return result, nil
@@ -524,7 +525,7 @@ func processGames(opts BuildOptions, config *Config, compilation []byte, sectorM
 	}
 
 	if len(validGames) == 0 {
-		logp("No ROMs found. Delete the \"%+v\" file to reset your configuration.\n", opts.Config.Games)
+		logp(lang.L("No ROMs found. Delete the \"%+v\" file to reset your configuration.\n"), opts.Config.Games)
 		result.Success = false
 		return result
 	}
@@ -600,12 +601,12 @@ func processGames(opts BuildOptions, config *Config, compilation []byte, sectorM
 
 		if !found {
 			gamesNotFound = append(gamesNotFound, game)
-			logp("\"%s\" couldn't be added because it exceeds the available cartridge space.\n", game.Title)
+			logp(lang.L("\"%s\" couldn't be added because it exceeds the available cartridge space.\n"), game.Title)
 		}
 	}
 
 	if !*bootLogoFound {
-		logp("Warning: Valid boot logo is missing!\n")
+		logp(lang.L("Warning: Valid boot logo is missing!\n"))
 	}
 
 	// 移除未找到的游戏
@@ -724,7 +725,7 @@ func printBuildInfo(config *Config, sectorMap []rune, sectorSize, sectorCount in
 	menuROM, itemList []byte, itemListOffset, statusOffset, cartridgeType, sectorsUsed, gamesAdded int) {
 
 	// 打印扇区映射
-	logp("Sector map (1 block = %d KiB):\n", sectorSize/1024)
+	logp(lang.L("Sector map (1 block = %d KiB):\n"), sectorSize/1024)
 	for i, c := range sectorMap {
 		logp("%c", c)
 		if i%64 == 63 {
@@ -735,15 +736,15 @@ func printBuildInfo(config *Config, sectorMap []rune, sectorSize, sectorCount in
 		logp("\n")
 	}
 
-	logp("%.2f%% (%d of %d sectors) used\n\n",
+	logp(lang.L("%.2f%% (%d of %d sectors) used\n\n"),
 		float64(sectorsUsed)/float64(sectorCount)*100, sectorsUsed, sectorCount)
-	logp("Added %d ROM(s) to the compilation\n\n", gamesAdded)
+	logp(lang.L("Added %d ROM(s) to the compilation\n\n"), gamesAdded)
 
 	// 打印游戏列表表头
 	if config.Cartridge.BatteryPresent {
-		logp("    | Offset     | Map Size  | Save Slot      | Title\n")
+		logp(lang.L("    | Offset     | Map Size  | Save Slot      | Title\n"))
 	} else {
-		logp("    | Offset     | Map Size  | Title\n")
+		logp(lang.L("    | Offset     | Map Size  | Title\n"))
 	}
 
 	// 收集按键组合
@@ -813,18 +814,18 @@ func printBuildInfo(config *Config, sectorMap []rune, sectorSize, sectorCount in
 	}
 
 	logp("\n")
-	logp("Menu ROM:        0x%08X–0x%08X\n", 0, len(menuROM))
-	logp("Game List:       0x%08X–0x%08X\n",
+	logp(lang.L("Menu ROM:        0x%08X–0x%08X\n"), 0, len(menuROM))
+	logp(lang.L("Game List:       0x%08X–0x%08X\n"),
 		itemListOffset*sectorSize, itemListOffset*sectorSize+len(itemList))
-	logp("Status Area:     0x%08X–0x%08X\n",
+	logp(lang.L("Status Area:     0x%08X–0x%08X\n"),
 		statusOffset*sectorSize, statusOffset*sectorSize+0x1000)
 	logp("\n")
 
-	batteryStr := "without battery"
+	batteryStr := lang.L("without battery")
 	if config.Cartridge.BatteryPresent {
-		batteryStr = "with battery"
+		batteryStr = lang.L("with battery")
 	}
-	logp("Cartridge Type:  %d (%s) %s\n",
+	logp(lang.L("Cartridge Type:  %d (%s) %s\n"),
 		cartridgeType+1, preset.CartridgeTypes[cartridgeType].Name, batteryStr)
 }
 
@@ -856,8 +857,8 @@ func updateROMHeader(compilation []byte, romCode string) {
 
 // writeOutput 写入输出文件
 func writeOutput(opts BuildOptions, compilation []byte, romSize, flashSize int, outputFile string) error {
-	logp("Output ROM Size: %.2f MiB\n", float64(romSize)/1024/1024)
-	logp("Output ROM Code: %s\n", string(compilation[0xAC:0xB0]))
+	logp(lang.L("Output ROM Size: %.2f MiB\n"), float64(romSize)/1024/1024)
+	logp(lang.L("Output ROM Code: %s\n"), string(compilation[0xAC:0xB0]))
 
 	if opts.Split {
 		// 分割输出

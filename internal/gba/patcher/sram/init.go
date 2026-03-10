@@ -3,6 +3,7 @@
 package sram
 
 import (
+	"chisknife/asset"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -303,7 +304,7 @@ func ProcessROM(inputPath string, outputPath string, opts Options) error {
 
 	// 应用 IPS 补丁
 	if opts.IPSPath != "" {
-		ipsData, err := os.ReadFile(opts.IPSPath)
+		ipsData, err := asset.SramIpsFS.ReadFile(opts.IPSPath)
 		if err != nil {
 			return fmt.Errorf("error reading IPS patch file: %w", err)
 		}

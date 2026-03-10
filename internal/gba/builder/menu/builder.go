@@ -1,9 +1,11 @@
 package menu
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -12,6 +14,7 @@ import (
 	"chisknife/internal/gba/patcher/batteryless"
 	"chisknife/internal/gba/patcher/rts"
 	"chisknife/internal/gba/patcher/sram"
+	"chisknife/internal/lang"
 	"chisknife/internal/preset"
 
 	"github.com/alitto/pond"
@@ -85,11 +88,22 @@ func BuildStart(opts BuildOptions, roms []GameInput) <-chan BuildInfo {
 				default:
 					ch <- BuildInfo{
 						Path:    fileNameFull,
-						Type:    "type detect",
-						Message: "Not a valid type.",
+						Type:    lang.L("type detect"),
+						Message: lang.L("Not a valid type."),
 						Success: false,
 					}
 					return
+				}
+
+				if err != nil {
+					ch <- BuildInfo{
+						Path:    fileNameFull,
+						Type:    lang.L("raw copy"),
+						Message: fmt.Sprintf(lang.L("process rom failed, err:%v"), err),
+						Success: false,
+					}
+					copyFile(game.Path, outFile)
+					err = nil
 				}
 
 				// 如果处理成功，添加到游戏列表
@@ -112,10 +126,23 @@ func BuildStart(opts BuildOptions, roms []GameInput) <-chan BuildInfo {
 
 		ch <- BuildInfo{
 			Path:    "builder.json",
-			Type:    "config generation",
-			Message: "Configuration file generated successfully.",
+			Type:    lang.L("config generation"),
+			Message: lang.L("Configuration file generated successfully."),
 			Success: true,
 		}
+
+		// 按照原始顺序排序后再生成合卡rom
+		slices.SortFunc(gameList, func(a, b *rombuilder.GameConfig) int {
+			left := slices.IndexFunc(roms, func(rom GameInput) bool {
+				return a.Title == rom.Name
+			})
+
+			right := slices.IndexFunc(roms, func(rom GameInput) bool {
+				return b.Title == rom.Name
+			})
+
+			return cmp.Compare(left, right)
+		})
 
 		// 构建配置结构
 		config := &rombuilder.Config{
@@ -130,8 +157,8 @@ func BuildStart(opts BuildOptions, roms []GameInput) <-chan BuildInfo {
 		// 调用 ROM builder 构建最终的多游戏菜单 ROM
 		ch <- BuildInfo{
 			Path:    "",
-			Type:    "rom build",
-			Message: "Starting ROM build...",
+			Type:    lang.L("rom build"),
+			Message: lang.L("Starting ROM build..."),
 			Success: true,
 		}
 
@@ -147,7 +174,7 @@ func BuildStart(opts BuildOptions, roms []GameInput) <-chan BuildInfo {
 				// 将 rombuilder 的日志输出到 build progress 窗口
 				ch <- BuildInfo{
 					Path:    "",
-					Type:    "rom build",
+					Type:    lang.L("rom build"),
 					Message: msg,
 					Success: true,
 				}
@@ -158,8 +185,8 @@ func BuildStart(opts BuildOptions, roms []GameInput) <-chan BuildInfo {
 		if err != nil {
 			ch <- BuildInfo{
 				Path:    opts.OutputPath,
-				Type:    "rom build",
-				Message: fmt.Sprintf("ROM build failed: %v", err),
+				Type:    lang.L("rom build"),
+				Message: fmt.Sprintf(lang.L("ROM build failed: %v"), err),
 				Success: false,
 			}
 			return
@@ -168,7 +195,7 @@ func BuildStart(opts BuildOptions, roms []GameInput) <-chan BuildInfo {
 		if !result.Success {
 			ch <- BuildInfo{
 				Path:    opts.OutputPath,
-				Type:    "rom build",
+				Type:    lang.L("rom build"),
 				Message: result.Message,
 				Success: false,
 			}
@@ -179,8 +206,8 @@ func BuildStart(opts BuildOptions, roms []GameInput) <-chan BuildInfo {
 		outputFile := strings.Replace(opts.OutputPath, "<CODE>", result.ROMCode, -1)
 		ch <- BuildInfo{
 			Path: outputFile,
-			Type: "rom build",
-			Message: fmt.Sprintf("ROM build completed. Code: %s, Size: %.2f MB, Games: %d",
+			Type: lang.L("rom build"),
+			Message: fmt.Sprintf(lang.L("ROM build completed. Code: %s, Size: %.2f MB, Games: %d"),
 				result.ROMCode, float64(result.ROMSize)/1024/1024, result.GamesAdded),
 			Success: true,
 		}
@@ -190,8 +217,8 @@ func BuildStart(opts BuildOptions, roms []GameInput) <-chan BuildInfo {
 			for _, game := range result.Data {
 				ch <- BuildInfo{
 					Path:    game.File,
-					Type:    "rom build",
-					Message: fmt.Sprintf("Warning: \"%s\" couldn't be added due to space constraints", game.Title),
+					Type:    lang.L("rom build"),
+					Message: fmt.Sprintf(lang.L("Warning: \"%s\" couldn't be added due to space constraints"), game.Title),
 					Success: false,
 				}
 			}
@@ -210,8 +237,8 @@ func processGBAGame(game GameInput, outFile string, opts BuildOptions, ch chan<-
 	if err != nil {
 		ch <- BuildInfo{
 			Path:    fileNameFull,
-			Type:    "read ROM",
-			Message: fmt.Sprintf("Failed to read ROM: %v", err),
+			Type:    lang.L("read ROM"),
+			Message: fmt.Sprintf(lang.L("Failed to read ROM: %v"), err),
 			Success: false,
 		}
 		return err
@@ -219,45 +246,59 @@ func processGBAGame(game GameInput, outFile string, opts BuildOptions, ch chan<-
 
 	// 检查是否需要 IPS 补丁
 	if contains(ipsGameList, gameID) {
-		ipsPath := filepath.Join("sram_ips", gameID+".ips")
+		ipsPath := fmt.Sprintf("sram_ips/%s.ips", gameID)
 		if err := sram.IPSPatch(game.Path, ipsPath, outFile); err != nil {
 			ch <- BuildInfo{
 				Path:    fileNameFull,
-				Type:    "IPS patch",
-				Message: "IPS patch failed.",
+				Type:    lang.L("IPS patch"),
+				Message: lang.L("IPS patch failed."),
 				Success: false,
 			}
 			return err
 		}
 		ch <- BuildInfo{
 			Path:    fileNameFull,
-			Type:    "IPS patch",
-			Message: "IPS patch succeed.",
+			Type:    lang.L("IPS patch"),
+			Message: lang.L("IPS patch succeed."),
 			Success: true,
 		}
 	} else if contains(emuGameList, gameID) {
 		// 跳过模拟器
 		copyFile(game.Path, outFile)
+		ch <- BuildInfo{
+			Path:    fileNameFull,
+			Type:    lang.L("raw copy"),
+			Message: lang.L("Skip emulator rom"),
+			Success: false,
+		}
+		copyFile(game.Path, outFile)
+
 	} else {
 		// 检查存档类型
 		saveType := CheckSaveType(game.Path)
 		if saveType == SaveTypeNone || saveType == SaveTypeSRAM {
+			ch <- BuildInfo{
+				Path:    fileNameFull,
+				Type:    lang.L("raw copy"),
+				Message: fmt.Sprintf(lang.L("Skip Save Type:%s"), saveType),
+				Success: false,
+			}
 			copyFile(game.Path, outFile)
 		} else {
 			// 应用 SRAM 补丁
 			if err := sram.SRAMPatchBank(game.Path, outFile, opts.SRAMBankType); err != nil {
 				ch <- BuildInfo{
 					Path:    fileNameFull,
-					Type:    "SRAM patch",
-					Message: "SRAM patch failed.",
+					Type:    lang.L("SRAM patch"),
+					Message: lang.L("SRAM patch failed."),
 					Success: false,
 				}
 				return err
 			}
 			ch <- BuildInfo{
 				Path:    fileNameFull,
-				Type:    "SRAM patch",
-				Message: "SRAM patch succeed.",
+				Type:    lang.L("SRAM patch"),
+				Message: lang.L("SRAM patch succeed."),
 				Success: true,
 			}
 		}
@@ -269,16 +310,16 @@ func processGBAGame(game GameInput, outFile string, opts BuildOptions, ch chan<-
 		if err := patcher.Patch(outFile, outFile, opts.BatterylessAutoSave); err != nil {
 			ch <- BuildInfo{
 				Path:    fileNameFull,
-				Type:    "batteryless patch",
-				Message: "Batteryless patch failed.",
+				Type:    lang.L("batteryless patch"),
+				Message: lang.L("Batteryless patch failed."),
 				Success: false,
 			}
 			return err
 		}
 		ch <- BuildInfo{
 			Path:    fileNameFull,
-			Type:    "batteryless patch",
-			Message: "Batteryless patch succeed.",
+			Type:    lang.L("batteryless patch"),
+			Message: lang.L("Batteryless patch succeed."),
 			Success: true,
 		}
 	} else if opts.UseRTS {
@@ -290,8 +331,8 @@ func processGBAGame(game GameInput, outFile string, opts BuildOptions, ch chan<-
 			if err != nil {
 				ch <- BuildInfo{
 					Path:    fileNameFull,
-					Type:    "RTS patch",
-					Message: "RTS patch failed.",
+					Type:    lang.L("RTS patch"),
+					Message: lang.L("RTS patch failed."),
 					Success: false,
 				}
 				return err
@@ -315,8 +356,8 @@ func processGBGame(game GameInput, outFile string, opts BuildOptions, ch chan<- 
 	if err := emulator.BuildGoomba([]string{game.Path}, outFile, goombaPath); err != nil {
 		ch <- BuildInfo{
 			Path:    fileNameFull,
-			Type:    "goomba build",
-			Message: fmt.Sprintf("Goomba build failed: %v", err),
+			Type:    lang.L("goomba build"),
+			Message: fmt.Sprintf(lang.L("Goomba build failed: %v"), err),
 			Success: false,
 		}
 		return err
@@ -324,8 +365,8 @@ func processGBGame(game GameInput, outFile string, opts BuildOptions, ch chan<- 
 
 	ch <- BuildInfo{
 		Path:    fileNameFull,
-		Type:    "goomba build",
-		Message: "Goomba build succeed.",
+		Type:    lang.L("goomba build"),
+		Message: lang.L("Goomba build succeed."),
 		Success: true,
 	}
 	return nil
@@ -343,8 +384,8 @@ func processNESGame(game GameInput, outFile string, opts BuildOptions, ch chan<-
 	if err := emulator.BuildPocketNES([]string{game.Path}, outFile, pocketnesPath, "emulator/pnesmmw.mdb"); err != nil {
 		ch <- BuildInfo{
 			Path:    fileNameFull,
-			Type:    "pocketnes build",
-			Message: fmt.Sprintf("PocketNES build failed: %v", err),
+			Type:    lang.L("pocketnes build"),
+			Message: fmt.Sprintf(lang.L("PocketNES build failed: %v"), err),
 			Success: false,
 		}
 		return err
@@ -352,8 +393,8 @@ func processNESGame(game GameInput, outFile string, opts BuildOptions, ch chan<-
 
 	ch <- BuildInfo{
 		Path:    fileNameFull,
-		Type:    "pocketnes build",
-		Message: "PocketNES build succeed.",
+		Type:    lang.L("pocketnes build"),
+		Message: lang.L("PocketNES build succeed."),
 		Success: true,
 	}
 	return nil

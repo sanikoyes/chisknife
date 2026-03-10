@@ -105,6 +105,10 @@ func (ui *romList) build() giu.Widget {
 // 支持点击选择和拖拽重新排序
 func (ui *romList) buildDraggableRomItem(index int) bool {
 	roms := ui.project.Roms
+	if len(roms) == 0 {
+		return false
+	}
+
 	defer func() {
 		ui.project.Roms = roms
 	}()
@@ -242,22 +246,22 @@ func (ui *romList) addRom() {
 		zenity.Title(lang.L("Select ROM files")),
 		zenity.FileFilters{
 			{
-				Name:     "GBA ROM files",
+				Name:     lang.L("GBA ROM files"),
 				Patterns: []string{"*.gba"},
 				CaseFold: true,
 			},
 			{
-				Name:     "NES ROM files",
+				Name:     lang.L("NES ROM files"),
 				Patterns: []string{"*.nes"},
 				CaseFold: true,
 			},
 			{
-				Name:     "GB/GBC ROM files",
+				Name:     lang.L("GB/GBC ROM files"),
 				Patterns: []string{"*.gb", "*.gbc"},
 				CaseFold: true,
 			},
 			{
-				Name:     "All files",
+				Name:     lang.L("All files"),
 				Patterns: []string{"*"},
 			},
 		},
@@ -355,7 +359,7 @@ func (ui *romList) buildRom() {
 		zenity.Filename(defaultPath),
 		zenity.FileFilters{
 			{
-				Name:     "GBA ROM files",
+				Name:     lang.L("GBA ROM files"),
 				Patterns: []string{"*.gba"},
 				CaseFold: true,
 			},

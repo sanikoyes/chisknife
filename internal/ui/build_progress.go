@@ -126,16 +126,17 @@ func (bp *buildProgress) startBuild(opts menu.BuildOptions, games []menu.GameInp
 		bp.isBuilding = false
 		bp.buildComplete = true
 		if bp.hasError {
-			bp.addLog("⚠ Build completed with warnings/errors")
+			bp.addLog("⚠ " + lang.L("Build completed with warnings/errors"))
 		} else {
-			bp.addLog("✓ Build completed successfully!")
-			// 构建成功，保存输出路径到项目配置
-			if bp.mainWindow != nil && bp.outputPath != "" {
-				bp.mainWindow.project.LastBuildOutput = bp.outputPath
-				// 自动保存项目
-				if bp.mainWindow.currentProjectPath != "" {
-					bp.mainWindow.doSaveProject(bp.mainWindow.currentProjectPath)
-				}
+			bp.addLog("✓ " + lang.L("Build completed successfully!"))
+		}
+
+		// 构建完毕，保存输出路径到项目配置
+		if bp.mainWindow != nil && bp.outputPath != "" {
+			bp.mainWindow.project.LastBuildOutput = bp.outputPath
+			// 自动保存项目
+			if bp.mainWindow.currentProjectPath != "" {
+				bp.mainWindow.doSaveProject(bp.mainWindow.currentProjectPath)
 			}
 		}
 	}()

@@ -12,6 +12,17 @@ type Options struct {
 	Sram1MSaveSupport bool  `json:"sram1m_save_support"` // 是否支持 1M SRAM 存档
 }
 
+// 重置
+func (o *Options) Reset() {
+	o.CartridgeType = 0
+	o.MinimalRomSize = 0
+	o.HaveBattery = true
+	o.UseRTS = false
+	o.SplitROM = false
+	o.Sram1MSaveSupport = false
+
+}
+
 // ROM 文件
 type Rom struct {
 	Name string `json:"name"` // 文件名
@@ -26,4 +37,11 @@ type Project struct {
 	Options         Options `json:"options"`           // 卡带选项
 	Roms            RomList `json:"roms"`              // rom列表
 	LastBuildOutput string  `json:"last_build_output"` // 上次成功构建的ROM文件路径
+}
+
+// 重置
+func (p *Project) Reset() {
+	p.Options.Reset()
+	p.Roms = nil
+	p.LastBuildOutput = ""
 }
